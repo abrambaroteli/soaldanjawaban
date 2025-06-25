@@ -1,0 +1,1 @@
+soal dan jawaban alkitab
