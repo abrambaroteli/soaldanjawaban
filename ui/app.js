@@ -2,229 +2,225 @@
 
 // Bridge untuk MTA CEF: stub saat bukan di MTA
 if (!window.mta) {
-  window.mta = {
-    triggerEvent: (...args) => console.log('[stub] mta.triggerEvent', ...args)
-  };
+  window.mta = { triggerEvent: function(){ console.log('[stub] mta.triggerEvent', arguments); } };
 }
 
-// Disable context menu untuk mencegah gangguan input
-window.addEventListener('contextmenu', (e) => e.preventDefault());
+// Disable context menu
+window.addEventListener('contextmenu', function(e){ e.preventDefault(); });
 
-const state = {
+var state = {
   credits: 0,
   available: [] // item: { name, durationLabel, costLabel, id }
 };
 
-// Util: konversi input menjadi array stabil
-function toArrayMaybe(list) {
-  if (Array.isArray(list)) return list;
+function safeParseJSON(d){
+  try { if (typeof d === 'string') return JSON.parse(d); } catch(e) {}
+  return d;
+}
+
+function toArrayMaybe(list){
+  if (Array.isArray && Array.isArray(list)) return list;
   if (!list || typeof list !== 'object') return [];
-  // Objek dengan kunci numerik ("1","2",...) -> urutkan
-  const keys = Object.keys(list)
-    .filter(k => !isNaN(Number(k)))
-    .map(k => Number(k))
-    .sort((a,b) => a - b);
+  var keys = [];
+  for (var k in list) {
+    if (list.hasOwnProperty(k)) {
+      var n = parseInt(k, 10);
+      if (!isNaN(n)) keys.push(n);
+    }
+  }
+  keys.sort(function(a,b){ return a-b; });
   if (keys.length === 0) {
-    // Mungkin bentuk { ["list"]: [...]} atau map lain
-    if (Array.isArray(list.list)) return list.list;
-    if (Array.isArray(list.available)) return list.available;
+    if (Array.isArray && Array.isArray(list.list)) return list.list;
+    if (Array.isArray && Array.isArray(list.available)) return list.available;
     return [];
   }
-  return keys.map(k => list[String(k)] ?? list[k]);
+  var out = [];
+  for (var i=0;i<keys.length;i++) {
+    var key = keys[i];
+    var v = (typeof list[key] !== 'undefined') ? list[key] : list[String(key)];
+    out.push(v);
+  }
+  return out;
 }
 
 // API dipanggil dari Lua
-window.initData = function initData(data) {
-  try {
-    if (typeof data === 'string') data = JSON.parse(data);
-  } catch (e) {}
+window.initData = function(data){
+  data = safeParseJSON(data);
   applyData(data);
   renderAll();
 };
 
-window.refreshAll = function refreshAll(data) {
-  try {
-    if (typeof data === 'string') data = JSON.parse(data);
-  } catch (e) {}
+window.refreshAll = function(data){
+  data = safeParseJSON(data);
   applyData(data);
   renderAll();
 };
 
-window.updateAvailable = function updateAvailable(availableOrObj, creditsMaybe) {
-  try {
-    if (typeof availableOrObj === 'string') availableOrObj = JSON.parse(availableOrObj);
-  } catch (e) {}
-
-  let list = availableOrObj;
-  let creditsLocal = creditsMaybe;
-
-  if (availableOrObj && typeof availableOrObj === 'object' && !Array.isArray(availableOrObj)) {
-    // Mendukung bentuk { list, credits } atau { available, credits }
-    list = availableOrObj.list ?? availableOrObj.available ?? availableOrObj;
-    creditsLocal = (availableOrObj.credits !== undefined) ? availableOrObj.credits : creditsMaybe;
+window.updateAvailable = function(availableOrObj, creditsMaybe){
+  availableOrObj = safeParseJSON(availableOrObj);
+  var list = availableOrObj;
+  var creditsLocal = creditsMaybe;
+  if (availableOrObj && typeof availableOrObj === 'object' && !(Array.isArray && Array.isArray(availableOrObj))) {
+    list = (typeof availableOrObj.list !== 'undefined') ? availableOrObj.list : (availableOrObj.available || availableOrObj);
+    creditsLocal = (typeof availableOrObj.credits !== 'undefined') ? availableOrObj.credits : creditsMaybe;
   }
-
   if (typeof creditsLocal === 'string') creditsLocal = Number(creditsLocal) || 0;
-
   state.available = normalizeAvailable(list || []);
-  if (creditsLocal !== undefined) state.credits = Number(creditsLocal) || state.credits;
+  if (typeof creditsLocal !== 'undefined') state.credits = Number(creditsLocal) || state.credits;
   renderHeader();
   renderAvailable();
 };
 
-function applyData(data) {
+function applyData(data){
   if (!data || typeof data !== 'object') return;
   state.credits = Number(data.credits) || 0;
-  state.available = normalizeAvailable(data.available || data.list || []);
+  var list = (typeof data.available !== 'undefined') ? data.available : (data.list || []);
+  state.available = normalizeAvailable(list);
 }
 
-function normalizeAvailable(listInput) {
-  const list = toArrayMaybe(listInput);
-  return list.map((it) => {
-    if (it && typeof it === 'object' && !Array.isArray(it)) {
-      return {
-        name: it.name ?? '',
-        durationLabel: it.durationLabel ?? (it.duration ? (it.duration > 1 ? `${it.duration} days` : 'Permanent') : ''),
-        costLabel: it.costLabel ?? String(it.cost ?? ''),
-        id: Number(it.id ?? it.perkId ?? it[3]) || 0
-      };
+function normalizeAvailable(listInput){
+  var list = toArrayMaybe(listInput);
+  var out = [];
+  for (var i=0;i<list.length;i++) {
+    var it = list[i];
+    if (it && typeof it === 'object' && !(Array.isArray && Array.isArray(it))) {
+      out.push({
+        name: (typeof it.name !== 'undefined') ? String(it.name) : '',
+        durationLabel: (typeof it.durationLabel !== 'undefined') ? String(it.durationLabel) : (it.duration ? (Number(it.duration)>1 ? String(it.duration)+' days' : 'Permanent') : ''),
+        costLabel: (typeof it.costLabel !== 'undefined') ? String(it.costLabel) : (typeof it.cost !== 'undefined' ? String(it.cost) : ''),
+        id: Number((typeof it.id !== 'undefined') ? it.id : (it.perkId || it[3])) || 0
+      });
+      continue;
     }
-    if (Array.isArray(it)) {
-      const name = it[0] ?? '';
-      const cost = it[1];
-      const duration = it[2];
-      const id = Number(it[3]) || 0;
-      const durationLabel = (Number(duration) > 1 ? `${duration} days` : 'Permanent');
-      const costLabel = (typeof cost === 'number') ? `${cost} Coin` : String(cost ?? '');
-      return { name, durationLabel, costLabel, id };
+    if (Array.isArray && Array.isArray(it)) {
+      var name = it[0] || '';
+      var cost = it[1];
+      var duration = it[2];
+      var id = Number(it[3]) || 0;
+      var durationLabel = (Number(duration) > 1 ? String(duration)+' days' : 'Permanent');
+      var costLabel = (typeof cost === 'number') ? String(cost)+' Coin' : String(cost || '');
+      out.push({ name: String(name), durationLabel: durationLabel, costLabel: costLabel, id: id });
+      continue;
     }
-    return { name: String(it ?? ''), durationLabel: '', costLabel: '', id: 0 };
-  });
+    out.push({ name: String(it || ''), durationLabel: '', costLabel: '', id: 0 });
+  }
+  return out;
 }
 
-function renderAll() {
+function renderAll(){
   renderHeader();
   renderAvailable();
   wireGlobalActions();
 }
 
-function renderHeader() {
-  const creditsEl = document.getElementById('creditsValue');
+function renderHeader(){
+  var creditsEl = document.getElementById('creditsValue');
   if (creditsEl) creditsEl.textContent = String(state.credits);
 }
 
-function renderAvailable() {
-  const tbody = document.querySelector('#availableTable tbody');
+function renderAvailable(){
+  var tbody = document.querySelector('#availableTable tbody');
   if (!tbody) return;
-  tbody.innerHTML = '';
-
+  while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
   try {
-    state.available.forEach((item) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${escapeHtml(item.name)}</td>
-        <td>${escapeHtml(item.durationLabel)}</td>
-        <td>${escapeHtml(item.costLabel)}</td>
-        <td>${escapeHtml(String(item.id))}</td>
-      `;
-      tr.addEventListener('dblclick', () => openPurchaseModal(item));
+    for (var i=0;i<state.available.length;i++) {
+      var item = state.available[i];
+      var tr = document.createElement('tr');
+      tr.innerHTML = ''+
+        '<td>'+escapeHtml(item.name)+'</td>'+
+        '<td>'+escapeHtml(item.durationLabel)+'</td>'+
+        '<td>'+escapeHtml(item.costLabel)+'</td>'+
+        '<td>'+escapeHtml(String(item.id))+'</td>';
+      (function(it){
+        tr.addEventListener('dblclick', function(){ openPurchaseModal(it); });
+      })(item);
       tbody.appendChild(tr);
-    });
-  } catch (e) {
-    console.error('Render available failed:', e);
+    }
+  } catch(e) {
+    // tampilkan info error minimal di UI agar mudah debug
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="4">Render error</td>';
+    tbody.appendChild(tr);
   }
 }
 
-function wireGlobalActions() {
-  const btnClose = document.getElementById('btnClose');
+function wireGlobalActions(){
+  var btnClose = document.getElementById('btnClose');
   if (btnClose && !btnClose._wired) {
     btnClose._wired = true;
-    btnClose.addEventListener('click', () => {
-      mta.triggerEvent('donation:close');
-    });
+    btnClose.addEventListener('click', function(){ mta.triggerEvent('donation:close'); });
   }
-
-  const btnDonate = document.getElementById('btnDonate');
+  var btnDonate = document.getElementById('btnDonate');
   if (btnDonate && !btnDonate._wired) {
     btnDonate._wired = true;
-    btnDonate.addEventListener('click', () => {
-      // Tampilkan info panel donasi di Lua (state 1)
-      mta.triggerEvent('donation:info', 1);
-    });
+    btnDonate.addEventListener('click', function(){ mta.triggerEvent('donation:info', 1); });
   }
-
-  const overlay = document.getElementById('modalOverlay');
+  var overlay = document.getElementById('modalOverlay');
   if (overlay && !overlay._wired) {
     overlay._wired = true;
-    overlay.addEventListener('click', () => closePurchaseModal());
+    overlay.addEventListener('click', function(){ closePurchaseModal(); });
   }
 }
 
 // Modal
-let currentItem = null;
-function openPurchaseModal(item) {
+var currentItem = null;
+function openPurchaseModal(item){
   currentItem = item;
-  const modal = document.getElementById('purchaseModal');
+  var modal = document.getElementById('purchaseModal');
   if (!modal) return;
   setText('mPerkName', item.name);
   setText('mDuration', item.durationLabel);
   setText('mCost', item.costLabel);
-
   modal.classList.remove('hidden');
-
-  const confirmBtn = document.getElementById('mConfirm');
-  const cancelBtn = document.getElementById('mCancel');
-
+  var confirmBtn = document.getElementById('mConfirm');
+  var cancelBtn = document.getElementById('mCancel');
   if (confirmBtn && !confirmBtn._wired) {
     confirmBtn._wired = true;
-    confirmBtn.addEventListener('click', () => {
+    confirmBtn.addEventListener('click', function(){
       if (!currentItem) return;
-      // Kirim ke Lua untuk proses server-side
       mta.triggerEvent('donation:purchase', Number(currentItem.id) || 0, null);
       closePurchaseModal();
     });
   }
-
   if (cancelBtn && !cancelBtn._wired) {
     cancelBtn._wired = true;
-    cancelBtn.addEventListener('click', () => closePurchaseModal());
+    cancelBtn.addEventListener('click', function(){ closePurchaseModal(); });
   }
 }
 
-function closePurchaseModal() {
-  const modal = document.getElementById('purchaseModal');
+function closePurchaseModal(){
+  var modal = document.getElementById('purchaseModal');
   if (modal) modal.classList.add('hidden');
   currentItem = null;
 }
 
-function setText(id, text) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = String(text ?? '');
+function setText(id, text){
+  var el = document.getElementById(id);
+  if (el) el.textContent = String(text || '');
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
+function escapeHtml(str){
+  str = String(str || '');
+  str = str.replace(/&/g, '&amp;');
+  str = str.replace(/</g, '&lt;');
+  str = str.replace(/>/g, '&gt;');
+  str = str.replace(/"/g, '&quot;');
+  str = str.replace(/'/g, '&#039;');
+  return str;
 }
 
 // Demo lokal saat bukan dari Lua
-(function bootstrapIfStandalone(){
+(function(){
   try {
-    // MTA biasanya akan memanggil window.initData. Jika tidak, isi sample.
-    const isFromLua = !!window.__fromLua;
+    var isFromLua = !!window.__fromLua;
     if (isFromLua) return;
-    const sample = {
+    window.initData({
       credits: 25,
       available: [
         { name: 'Max Interiors +1', durationLabel: 'Permanent', costLabel: '6 Coin', id: 14 },
         { name: 'Private Number', durationLabel: 'Permanent', costLabel: '1 Coin', id: 33 },
-        { name: 'Custom Chat Icon', durationLabel: 'Permanent', costLabel: '3 Coin', id: 29 },
+        { name: 'Custom Chat Icon', durationLabel: 'Permanent', costLabel: '3 Coin', id: 29 }
       ]
-    };
-    window.initData(sample);
-  } catch (e) {}
+    });
+  } catch(e) {}
 })();
