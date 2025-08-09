@@ -37,11 +37,17 @@ local function focusUI()
   end
   showCursor(true)
   guiSetInputEnabled(true)
+  if guiSetInputMode then
+    guiSetInputMode("no_binds_when_editing")
+  end
 end
 
 local function blurUI()
   showCursor(false)
   guiSetInputEnabled(false)
+  if guiSetInputMode then
+    guiSetInputMode("allow_binds")
+  end
 end
 
 local function drawBrowser()
@@ -89,10 +95,12 @@ local function onKey(button, press)
     return
   end
   -- Keyboard
+  local hasKeyDown = type(injectBrowserKeyDown) == "function"
+  local hasKeyUp = type(injectBrowserKeyUp) == "function"
   if press then
-    injectBrowserKeyDown(UI.browser, button)
+    if hasKeyDown then injectBrowserKeyDown(UI.browser, button) end
   else
-    injectBrowserKeyUp(UI.browser, button)
+    if hasKeyUp then injectBrowserKeyUp(UI.browser, button) end
   end
 end
 
