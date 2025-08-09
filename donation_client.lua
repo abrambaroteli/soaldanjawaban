@@ -133,10 +133,74 @@ local function execJS(fn, tbl)
   executeBrowserJavascript(UI.browser, code)
 end
 
+local function fmtMoney(n)
+  return tostring(n)
+end
+
+local function buildAvailableForUI()
+  local list = {}
+  local gcTransferFee = false
+  for _, perkArr in ipairs(available or {}) do
+    local name = perkArr[1]
+    local cost = tonumber(perkArr[2]) or 0
+    local duration = tonumber(perkArr[3]) or 0
+    local id = tonumber(perkArr[4]) or 0
+
+    if id == 14 then
+      local nextIntCap = tonumber(getElementData(localPlayer, "maxinteriors")) or 0
+      nextIntCap = nextIntCap + 1
+      name = tostring(name or "") .. tostring(nextIntCap)
+    elseif id == 15 then
+      local currentMaxVehicles = tonumber(getElementData(localPlayer, "maxvehicles")) or 0
+      currentMaxVehicles = currentMaxVehicles + 1
+      name = tostring(name or "") .. tostring(currentMaxVehicles)
+    end
+
+    local durationLabel = (duration > 1 and (tostring(duration).." days") or "Permanent")
+
+    local costLabel
+    if id == 13 then
+      -- GCs Transfer shows fee percent
+      costLabel = string.format("Fee %d%%", cost)
+      gcTransferFee = cost
+    elseif id == 14 then
+      local nextIntCap = (tonumber(getElementData(localPlayer, "maxinteriors")) or 0) + 1
+      local price = cost * (nextIntCap - 2) * 2
+      if credits >= price then
+        costLabel = string.format("%d Coin", price)
+      else
+        costLabel = string.format("%d Coin (not enough)", price)
+      end
+    elseif id == 15 then
+      local currentMaxVehicles = (tonumber(getElementData(localPlayer, "maxvehicles")) or 0) + 1
+      local price = cost * (currentMaxVehicles - 2) * 2
+      if credits >= price then
+        costLabel = string.format("%d Coin", price)
+      else
+        costLabel = string.format("%d Coin (not enough)", price)
+      end
+    else
+      if credits >= cost then
+        costLabel = string.format("%d Coin", cost)
+      else
+        costLabel = string.format("%d Coin (not enough)", cost)
+      end
+    end
+
+    table.insert(list, {
+      name = tostring(name or ""),
+      durationLabel = durationLabel,
+      costLabel = tostring(costLabel or ""),
+      id = id,
+    })
+  end
+  return list
+end
+
 local function pushAll()
   execJS("refreshAll", {
     obtained = obtained,
-    available = available,
+    available = buildAvailableForUI(),
     credits = credits,
     history = history,
     purchased = purchased,
@@ -172,19 +236,18 @@ function openDonationGUI(obtained1, available1, credits1, history1, purchased1, 
     executeBrowserJavascript(UI.browser, "window.__fromLua = true;")
     execJS("initData", {
       obtained = obtained,
-      available = available,
+      available = buildAvailableForUI(),
       credits = credits,
       history = history,
       purchased = purchased,
       global = globalPurchaseHistory,
       isFounder = isFounder(),
     })
-    -- Fallback kirim lagi setelah 100ms untuk mengatasi race condition
     setTimer(function()
       if UI.browser and isElement(UI.browser) then
         execJS("refreshAll", {
           obtained = obtained,
-          available = available,
+          available = buildAvailableForUI(),
           credits = credits,
           history = history,
           purchased = purchased,
@@ -241,7 +304,7 @@ function updateAvailablePerksCEF(available1, credits1)
   available = available1 or available
   credits = tonumber(credits1) or credits
   if UI.browser and isElement(UI.browser) then
-    execJS("updateAvailable", { list = available, credits = credits })
+    execJS("updateAvailable", { list = buildAvailableForUI(), credits = credits })
   end
 end
 addEvent("donation-system:GUI:updateAvailable", true)
