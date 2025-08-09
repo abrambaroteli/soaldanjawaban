@@ -1,0 +1,9 @@
+<meta>
+  <info author="YourName" name="Donation CEF UI" version="1.0" type="script" />
+
+  <script src="donation_client.lua" type="client" />
+
+  <file src="ui/index.html" />
+  <file src="ui/styles.css" />
+  <file src="ui/app.js" />
+</meta>

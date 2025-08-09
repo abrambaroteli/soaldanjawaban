@@ -29,14 +29,24 @@ window.refreshAll = function refreshAll(data) {
   renderAll();
 };
 
-window.updateAvailable = function updateAvailable(available, credits) {
+window.updateAvailable = function updateAvailable(availableOrObj, creditsMaybe) {
   try {
-    if (typeof available === 'string') available = JSON.parse(available);
+    if (typeof availableOrObj === 'string') availableOrObj = JSON.parse(availableOrObj);
   } catch (e) {}
-  if (typeof credits === 'string') credits = Number(credits) || 0;
-  // Try to map raw arrays to objects if needed
-  state.available = normalizeAvailable(available);
-  state.credits = Number(credits) || state.credits;
+
+  let list = availableOrObj;
+  let creditsLocal = creditsMaybe;
+
+  if (availableOrObj && typeof availableOrObj === 'object' && !Array.isArray(availableOrObj)) {
+    // Mendukung bentuk { list, credits } atau { available, credits }
+    list = availableOrObj.list ?? availableOrObj.available ?? [];
+    creditsLocal = (availableOrObj.credits !== undefined) ? availableOrObj.credits : creditsMaybe;
+  }
+
+  if (typeof creditsLocal === 'string') creditsLocal = Number(creditsLocal) || 0;
+
+  state.available = normalizeAvailable(list || []);
+  if (creditsLocal !== undefined) state.credits = Number(creditsLocal) || state.credits;
   renderHeader();
   renderAvailable();
 };
