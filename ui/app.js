@@ -12,6 +12,24 @@ const state = {
   available: [] // item: { name, durationLabel, costLabel, id }
 };
 
+// Util: konversi input menjadi array stabil
+function toArrayMaybe(list) {
+  if (Array.isArray(list)) return list;
+  if (!list || typeof list !== 'object') return [];
+  // Objek dengan kunci numerik ("1","2",...) -> urutkan
+  const keys = Object.keys(list)
+    .filter(k => !isNaN(Number(k)))
+    .map(k => Number(k))
+    .sort((a,b) => a - b);
+  if (keys.length === 0) {
+    // Mungkin bentuk { ["list"]: [...]} atau map lain
+    if (Array.isArray(list.list)) return list.list;
+    if (Array.isArray(list.available)) return list.available;
+    return [];
+  }
+  return keys.map(k => list[String(k)] ?? list[k]);
+}
+
 // API dipanggil dari Lua
 window.initData = function initData(data) {
   try {
@@ -39,7 +57,7 @@ window.updateAvailable = function updateAvailable(availableOrObj, creditsMaybe) 
 
   if (availableOrObj && typeof availableOrObj === 'object' && !Array.isArray(availableOrObj)) {
     // Mendukung bentuk { list, credits } atau { available, credits }
-    list = availableOrObj.list ?? availableOrObj.available ?? [];
+    list = availableOrObj.list ?? availableOrObj.available ?? availableOrObj;
     creditsLocal = (availableOrObj.credits !== undefined) ? availableOrObj.credits : creditsMaybe;
   }
 
@@ -54,14 +72,12 @@ window.updateAvailable = function updateAvailable(availableOrObj, creditsMaybe) 
 function applyData(data) {
   if (!data || typeof data !== 'object') return;
   state.credits = Number(data.credits) || 0;
-  state.available = normalizeAvailable(data.available || []);
+  state.available = normalizeAvailable(data.available || data.list || []);
 }
 
-function normalizeAvailable(list) {
-  // Mendukung dua bentuk input:
-  // - Sudah berupa objek: {name, durationLabel, costLabel, id}
-  // - Bentuk array ala Lua: { name, costNumberOrText, durationNumber, id }
-  return (list || []).map((it) => {
+function normalizeAvailable(listInput) {
+  const list = toArrayMaybe(listInput);
+  return list.map((it) => {
     if (it && typeof it === 'object' && !Array.isArray(it)) {
       return {
         name: it.name ?? '',
@@ -99,18 +115,21 @@ function renderAvailable() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  state.available.forEach((item) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(item.name)}</td>
-      <td>${escapeHtml(item.durationLabel)}</td>
-      <td>${escapeHtml(item.costLabel)}</td>
-      <td>${escapeHtml(String(item.id))}</td>
-    `;
-
-    tr.addEventListener('dblclick', () => openPurchaseModal(item));
-    tbody.appendChild(tr);
-  });
+  try {
+    state.available.forEach((item) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(item.name)}</td>
+        <td>${escapeHtml(item.durationLabel)}</td>
+        <td>${escapeHtml(item.costLabel)}</td>
+        <td>${escapeHtml(String(item.id))}</td>
+      `;
+      tr.addEventListener('dblclick', () => openPurchaseModal(item));
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error('Render available failed:', e);
+  }
 }
 
 function wireGlobalActions() {

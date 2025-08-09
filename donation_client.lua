@@ -50,14 +50,16 @@ local function drawBrowser()
   end
 end
 
-local function sendToJS(functionName, payload)
+local function execJS(fn, tbl)
   if not (UI.browser and isElement(UI.browser)) then return end
-  local js = string.format("window.%s(%s);", tostring(functionName), toJSON(payload or {}))
-  executeBrowserJavascript(UI.browser, js)
+  local ok, json = pcall(toJSON, tbl or {})
+  if not ok then return end
+  local code = string.format("window.%s(%s);", tostring(fn), json)
+  executeBrowserJavascript(UI.browser, code)
 end
 
 local function pushAll()
-  sendToJS("refreshAll", {
+  execJS("refreshAll", {
     obtained = obtained,
     available = available,
     credits = credits,
@@ -92,9 +94,8 @@ function openDonationGUI(obtained1, available1, credits1, history1, purchased1, 
   end)
 
   addEventHandler("onClientBrowserDocumentReady", UI.browser, function()
-    -- Tandai kalau init berasal dari Lua
     executeBrowserJavascript(UI.browser, "window.__fromLua = true;")
-    local payload = {
+    execJS("initData", {
       obtained = obtained,
       available = available,
       credits = credits,
@@ -102,8 +103,21 @@ function openDonationGUI(obtained1, available1, credits1, history1, purchased1, 
       purchased = purchased,
       global = globalPurchaseHistory,
       isFounder = isFounder(),
-    }
-    sendToJS("initData", payload)
+    })
+    -- Fallback kirim lagi setelah 100ms untuk mengatasi race condition
+    setTimer(function()
+      if UI.browser and isElement(UI.browser) then
+        execJS("refreshAll", {
+          obtained = obtained,
+          available = available,
+          credits = credits,
+          history = history,
+          purchased = purchased,
+          global = globalPurchaseHistory,
+          isFounder = isFounder(),
+        })
+      end
+    end, 100, 1)
   end)
 
   addEventHandler("onClientRender", root, drawBrowser)
@@ -150,7 +164,7 @@ function updateAvailablePerksCEF(available1, credits1)
   available = available1 or available
   credits = tonumber(credits1) or credits
   if UI.browser and isElement(UI.browser) then
-    sendToJS("updateAvailable", { list = available, credits = credits })
+    execJS("updateAvailable", { list = available, credits = credits })
   end
 end
 addEvent("donation-system:GUI:updateAvailable", true)
