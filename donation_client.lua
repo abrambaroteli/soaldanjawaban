@@ -1,10 +1,13 @@
 -- Donation CEF UI (client-side)
--- Migrasi dari GUI MTA ke CEF HTML/CSS/JS
+-- Versi menggunakan createBrowser() + dxDraw sebagai container.
 
 local UI = {
-  wnd = nil,        -- GUI Browser element
-  br = nil,         -- Browser handle
+  browser = nil,   -- web browser element
   isOpen = false,
+  w = 980,
+  h = 620,
+  x = 0,
+  y = 0,
 }
 
 -- State yang dikirim/dipakai UI
@@ -22,9 +25,15 @@ local function isFounder()
   return false
 end
 
+local function calcCenter()
+  local sw, sh = guiGetScreenSize()
+  UI.x = math.floor((sw - UI.w) / 2)
+  UI.y = math.floor((sh - UI.h) / 2)
+end
+
 local function focusUI()
-  if UI.br and isElement(UI.br) then
-    focusBrowser(UI.br)
+  if UI.browser and isElement(UI.browser) then
+    focusBrowser(UI.browser)
   end
   showCursor(true)
   guiSetInputEnabled(true)
@@ -35,10 +44,16 @@ local function blurUI()
   guiSetInputEnabled(false)
 end
 
+local function drawBrowser()
+  if UI.isOpen and UI.browser and isElement(UI.browser) then
+    dxDrawImage(UI.x, UI.y, UI.w, UI.h, UI.browser, 0, 0, 0, tocolor(255, 255, 255, 255), true)
+  end
+end
+
 local function sendToJS(functionName, payload)
-  if not (UI.br and isElement(UI.br)) then return end
+  if not (UI.browser and isElement(UI.browser)) then return end
   local js = string.format("window.%s(%s);", tostring(functionName), toJSON(payload or {}))
-  executeBrowserJavascript(UI.br, js)
+  executeBrowserJavascript(UI.browser, js)
 end
 
 local function pushAll()
@@ -61,7 +76,7 @@ function openDonationGUI(obtained1, available1, credits1, history1, purchased1, 
   purchased = purchased1 or {}
   globalPurchaseHistory = globalPurchaseHistory1 or {}
 
-  if UI.wnd and isElement(UI.wnd) and UI.br and isElement(UI.br) then
+  if UI.browser and isElement(UI.browser) then
     UI.isOpen = true
     triggerEvent('hud:blur', resourceRoot, 6, false, 0.5, nil)
     focusUI()
@@ -69,16 +84,16 @@ function openDonationGUI(obtained1, available1, credits1, history1, purchased1, 
     return
   end
 
-  local sw, sh = guiGetScreenSize()
-  local w, h = 980, 620
-  local x, y = (sw - w) / 2, (sh - h) / 2
+  calcCenter()
+  UI.browser = createBrowser(UI.w, UI.h, true, false)
 
-  UI.wnd = guiCreateBrowser(x, y, w, h, true, true, false)
-  UI.br = guiGetBrowser(UI.wnd)
+  addEventHandler("onClientBrowserCreated", UI.browser, function()
+    loadBrowserURL(UI.browser, "http://mta/local/ui/index.html")
+  end)
 
-  addEventHandler("onClientBrowserDocumentReady", UI.br, function()
+  addEventHandler("onClientBrowserDocumentReady", UI.browser, function()
     -- Tandai kalau init berasal dari Lua
-    executeBrowserJavascript(UI.br, "window.__fromLua = true;")
+    executeBrowserJavascript(UI.browser, "window.__fromLua = true;")
     local payload = {
       obtained = obtained,
       available = available,
@@ -89,9 +104,10 @@ function openDonationGUI(obtained1, available1, credits1, history1, purchased1, 
       isFounder = isFounder(),
     }
     sendToJS("initData", payload)
-  end, false)
+  end)
 
-  loadBrowserURL(UI.br, "http://mta/local/ui/index.html")
+  addEventHandler("onClientRender", root, drawBrowser)
+
   UI.isOpen = true
   triggerEvent('hud:blur', resourceRoot, 6, false, 0.5, nil)
   focusUI()
@@ -100,10 +116,12 @@ addEvent("donation-system:GUI:open", true)
 addEventHandler("donation-system:GUI:open", root, openDonationGUI)
 
 function closeDonationGUI()
-  if UI.wnd and isElement(UI.wnd) then
-    destroyElement(UI.wnd)
+  if UI.browser and isElement(UI.browser) then
+    destroyElement(UI.browser)
   end
-  UI = { wnd = nil, br = nil, isOpen = false }
+  removeEventHandler("onClientRender", root, drawBrowser)
+  UI.browser = nil
+  UI.isOpen = false
   triggerEvent('hud:blur', resourceRoot, 'off')
   blurUI()
 end
@@ -120,20 +138,18 @@ end)
 addEvent("donation:info", true)
 addEventHandler("donation:info", resourceRoot, function(state)
   state = tonumber(state) or 1
-  -- Jika fungsi showInfoPanel ada di resource lama, panggil.
   if type(showInfoPanel) == 'function' then
     showInfoPanel(state)
   else
-    -- Fallback: salin link di server lama jika diperlukan, atau abaikan.
     outputChatBox("Info panel is not available in this build.")
   end
 end)
 
--- Update sinkronisasi (opsional dipanggil dari server/client)
+-- Update sinkronisasi
 function updateAvailablePerksCEF(available1, credits1)
   available = available1 or available
   credits = tonumber(credits1) or credits
-  if UI.br and isElement(UI.br) then
+  if UI.browser and isElement(UI.browser) then
     sendToJS("updateAvailable", { list = available, credits = credits })
   end
 end
@@ -144,9 +160,8 @@ end)
 
 -- Respon server (opsional)
 function getResponseFromServer(code, msg)
-  if not (UI.br and isElement(UI.br)) then return end
-  -- Anda bisa menambahkan notifikasi JS di sini bila diperlukan
-  -- contoh: executeBrowserJavascript(UI.br, string.format("window.toast(%s,%s);", toJSON(code), toJSON(msg)))
+  if not (UI.browser and isElement(UI.browser)) then return end
+  -- Contoh ekstensi: executeBrowserJavascript(UI.browser, string.format("window.toast(%s,%s);", toJSON(code), toJSON(msg)))
 end
 addEvent("donation-system:getResponseFromServer", true)
 addEventHandler("donation-system:getResponseFromServer", root, getResponseFromServer)
