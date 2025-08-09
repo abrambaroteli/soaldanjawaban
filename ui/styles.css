@@ -29,8 +29,9 @@ button:hover { filter: brightness(1.08); }
 
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; }
 .modal.hidden { display: none; }
-.modal-content { width: 420px; max-width: calc(100% - 32px); background: #111925; border: 1px solid #223144; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 32px rgba(0,0,0,.6); }
+.modal-content { width: 420px; max-width: calc(100% - 32px); background: #111925; border: 1px solid #223144; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 32px rgba(0,0,0,.6); position: relative; z-index: 2; }
 .modal-header { padding: 14px 16px; background: #152338; color: #cfe4ff; font-weight: 700; border-bottom: 1px solid #23354d; }
 .modal-body { padding: 14px 16px; }
 .modal-body .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #23354d; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; padding: 14px 16px; background: #0f1724; border-top: 1px solid #23354d; }
+.modal-overlay { position: absolute; inset: 0; background: transparent; z-index: 1; }

@@ -7,6 +7,9 @@ if (!window.mta) {
   };
 }
 
+// Disable context menu untuk mencegah gangguan input
+window.addEventListener('contextmenu', (e) => e.preventDefault());
+
 const state = {
   credits: 0,
   available: [] // item: { name, durationLabel, costLabel, id }
@@ -148,6 +151,12 @@ function wireGlobalActions() {
       // Tampilkan info panel donasi di Lua (state 1)
       mta.triggerEvent('donation:info', 1);
     });
+  }
+
+  const overlay = document.getElementById('modalOverlay');
+  if (overlay && !overlay._wired) {
+    overlay._wired = true;
+    overlay.addEventListener('click', () => closePurchaseModal());
   }
 }
 

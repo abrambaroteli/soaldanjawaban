@@ -50,6 +50,73 @@ local function drawBrowser()
   end
 end
 
+-- Input injection helpers
+local function screenToBrowser(px, py)
+  local bx = px - UI.x
+  local by = py - UI.y
+  return bx, by, (bx >= 0 and by >= 0 and bx <= UI.w and by <= UI.h)
+end
+
+local function onCursorMove(_, _, absX, absY)
+  if not (UI.isOpen and UI.browser and isElement(UI.browser)) then return end
+  local bx, by, inside = screenToBrowser(absX, absY)
+  if inside then
+    injectBrowserMouseMove(UI.browser, bx, by)
+  end
+end
+
+local function onClick(button, state, absX, absY)
+  if not (UI.isOpen and UI.browser and isElement(UI.browser)) then return end
+  local bx, by, inside = screenToBrowser(absX, absY)
+  if not inside then return end
+  if state == "down" then
+    injectBrowserMouseDown(UI.browser, button)
+  else
+    injectBrowserMouseUp(UI.browser, button)
+  end
+end
+
+local function onKey(button, press)
+  if not (UI.isOpen and UI.browser and isElement(UI.browser)) then return end
+  -- Mouse wheel
+  if button == "mouse_wheel_up" and press then
+    injectBrowserMouseWheel(UI.browser, 40, 0)
+    cancelEvent()
+    return
+  elseif button == "mouse_wheel_down" and press then
+    injectBrowserMouseWheel(UI.browser, -40, 0)
+    cancelEvent()
+    return
+  end
+  -- Keyboard
+  if press then
+    injectBrowserKeyDown(UI.browser, button)
+  else
+    injectBrowserKeyUp(UI.browser, button)
+  end
+end
+
+local function onCharacter(c)
+  if not (UI.isOpen and UI.browser and isElement(UI.browser)) then return end
+  if type(c) == "string" and #c > 0 then
+    injectBrowserInput(UI.browser, c)
+  end
+end
+
+local function bindInputs()
+  addEventHandler("onClientCursorMove", root, onCursorMove)
+  addEventHandler("onClientClick", root, onClick)
+  addEventHandler("onClientKey", root, onKey)
+  addEventHandler("onClientCharacter", root, onCharacter)
+end
+
+local function unbindInputs()
+  removeEventHandler("onClientCursorMove", root, onCursorMove)
+  removeEventHandler("onClientClick", root, onClick)
+  removeEventHandler("onClientKey", root, onKey)
+  removeEventHandler("onClientCharacter", root, onCharacter)
+end
+
 local function execJS(fn, tbl)
   if not (UI.browser and isElement(UI.browser)) then return end
   local ok, json = pcall(toJSON, tbl or {})
@@ -121,6 +188,7 @@ function openDonationGUI(obtained1, available1, credits1, history1, purchased1, 
   end)
 
   addEventHandler("onClientRender", root, drawBrowser)
+  bindInputs()
 
   UI.isOpen = true
   triggerEvent('hud:blur', resourceRoot, 6, false, 0.5, nil)
@@ -134,6 +202,7 @@ function closeDonationGUI()
     destroyElement(UI.browser)
   end
   removeEventHandler("onClientRender", root, drawBrowser)
+  unbindInputs()
   UI.browser = nil
   UI.isOpen = false
   triggerEvent('hud:blur', resourceRoot, 'off')

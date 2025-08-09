@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Donator's Panel</title>
   <link rel="stylesheet" href="styles.css" />
+  <style>img{pointer-events:none;user-drag:none;-webkit-user-drag:none;}</style>
 </head>
 <body>
   <div class="container">
@@ -39,6 +40,7 @@
   </div>
 
   <div class="modal hidden" id="purchaseModal">
+    <div class="modal-overlay" id="modalOverlay"></div>
     <div class="modal-content">
       <div class="modal-header">Confirm purchase</div>
       <div class="modal-body">
