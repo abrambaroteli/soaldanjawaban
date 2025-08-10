@@ -1,0 +1,37 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #f3f5f7; background: #0f141a; }
+
+.container { max-width: 980px; margin: 24px auto; padding: 16px; background: #121922; border: 1px solid #263244; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.4); }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.title { font-size: 20px; font-weight: 700; color: #b7d8ff; }
+.credits { font-size: 14px; opacity: .9; }
+
+.tabs { display: flex; gap: 8px; margin: 8px 0 12px; }
+.tab { background: #0f141a; color: #9fb9d4; border: 1px solid #243244; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: .15s; }
+.tab.active, .tab:hover { background: #192433; color: #d9ecff; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.hint { margin: 8px 0 12px; font-size: 12px; color: #b0c8e3; opacity: .9; }
+
+.table { width: 100%; border-collapse: collapse; background: #0f141a; border: 1px solid #243244; border-radius: 10px; overflow: hidden; }
+.table thead th { text-align: left; padding: 10px 12px; font-size: 12px; color: #8fb3d8; background: #142030; border-bottom: 1px solid #243244; }
+.table tbody td { padding: 10px 12px; border-bottom: 1px solid #1c2939; font-size: 14px; color: #e6f0ff; }
+.table tbody tr { cursor: pointer; }
+.table tbody tr:hover { background: #172235; }
+
+.actions { display: flex; gap: 12px; margin-top: 16px; }
+button { border: 1px solid #2a3b4f; background: #142030; color: #d4e9ff; border-radius: 8px; padding: 10px 14px; cursor: pointer; transition: .15s; font-weight: 600; }
+button.primary { background: linear-gradient(180deg, #2671ff, #1b54bd); border-color: #194aa6; }
+button.secondary { background: #142030; }
+button:hover { filter: brightness(1.08); }
+
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; }
+.modal.hidden { display: none; }
+.modal-content { width: 420px; max-width: calc(100% - 32px); background: #111925; border: 1px solid #223144; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 32px rgba(0,0,0,.6); position: relative; z-index: 2; }
+.modal-header { padding: 14px 16px; background: #152338; color: #cfe4ff; font-weight: 700; border-bottom: 1px solid #23354d; }
+.modal-body { padding: 14px 16px; }
+.modal-body .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #23354d; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; padding: 14px 16px; background: #0f1724; border-top: 1px solid #23354d; }
+.modal-overlay { position: absolute; inset: 0; background: transparent; z-index: 1; }

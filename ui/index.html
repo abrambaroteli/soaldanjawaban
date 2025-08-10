@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Donator's Panel</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>img{pointer-events:none;user-drag:none;-webkit-user-drag:none;}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="title">Donator's Panel</div>
+      <div class="credits">Coin(s): <span id="creditsValue">0</span></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="available">Available items</button>
+    </div>
+
+    <div class="tab-content active" id="tab-available">
+      <div class="hint">Double-click an item to purchase.</div>
+      <table class="table" id="availableTable">
+        <thead>
+          <tr>
+            <th style="width: 60%">Perk Name</th>
+            <th style="width: 15%">Duration</th>
+            <th style="width: 20%">Cost</th>
+            <th style="width: 5%">ID</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button id="btnDonate" class="primary">Donasi Coin(s) Sekarang!</button>
+      <button id="btnClose" class="secondary">Close</button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="purchaseModal">
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">Confirm purchase</div>
+      <div class="modal-body">
+        <div class="row"><span>Perk:</span><span id="mPerkName"></span></div>
+        <div class="row"><span>Duration:</span><span id="mDuration"></span></div>
+        <div class="row"><span>Cost:</span><span id="mCost"></span></div>
+      </div>
+      <div class="modal-actions">
+        <button id="mConfirm" class="primary">Purchase</button>
+        <button id="mCancel" class="secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
